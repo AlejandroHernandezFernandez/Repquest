@@ -43,6 +43,18 @@ Only application code is included here, not personal workout logs. The styleshee
 
 This repository starts with the existing AI-assisted prototype. Future feature work will be recorded in separate commits as part of a guided learning workflow.
 
-The workout-duration timer is planned and is **not implemented in this baseline**.
+## v1.01 — Workout duration timer
+
+- Starts automatically when a new workout begins.
+- Recalculates elapsed time from a saved timestamp, including time spent on other screens or with the phone locked.
+- Saves the final duration in workout history and recent activity.
+- Preserves old data; legacy drafts offer an explicit Start timer now option.
+- Does not affect XP, sets, weights, or the storage key.
+
+Timer helpers live in `dist/timer.js`. Run the regression checks with Node.js:
+
+```sh
+node tests/timer.test.cjs
+```
 
 The existing hosted app is deployed separately. Pushing to this GitHub repository does not automatically update that deployment.
