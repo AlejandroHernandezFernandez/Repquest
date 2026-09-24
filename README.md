@@ -25,13 +25,34 @@ Then open http://localhost:8000 in your browser. PWA features require HTTPS or l
 ## Code layout
 
 - `dist/index.html`: page shell
-- `dist/app.js`: UI, workout logic, rewards, charts, and persistence
-- `dist/style.css`: styling
-- `dist/sw.js`: service worker
+- `dist/workout-tracker.js`: screens, workout actions, XP, charts, and storage
+- `dist/workout-styles.css`: colors, layout, controls, and mobile styling
+- `dist/timer.js`: elapsed-time and duration formatting helpers
+- `dist/service-worker.js`: offline app shell and cache cleanup
 - `dist/manifest.webmanifest`: PWA metadata
 - `dist/icon-192.png`, `dist/icon-512.png`: app icons
+- `tests/timer.test.cjs`: timer and saved-workout regression checks
 
 The `dist` folder contains the editable application source, not generated build output.
+
+## Where to make a change
+
+| To change | Look for in `dist/workout-tracker.js` |
+| --- | --- |
+| Saved data and JSON backup checks | `KEY`, `data`, `validate()`, `save()` |
+| XP and progressive overload | `rewards()`, `previous()` |
+| Home screen and recent activity | `home()`, `recent()` |
+| Preset workouts and set editing | `routines`, `start()`, `workout()`, `bind()` |
+| Progress charts and body weight | `chart()`, `progress()` |
+| Past workouts and preferences | `history()`, `settings()` |
+| Complete a workout | `finish()` |
+| Page navigation and event handlers | `go()`, `render()`, `bind()` |
+
+Screen functions generate the HTML for each page. `render()` inserts that HTML, then `bind()` reconnects the buttons and inputs on the new screen. Styles for the same UI are in `dist/workout-styles.css`, grouped by section comments.
+
+`data.sessions` contains completed workouts, `data.weights` contains body weight entries, and `data.draft` contains a workout in progress. The `repquest-v1` storage key must stay the same to keep existing browser data. A source update at the same URL keeps that data; a different domain or browser has separate storage. Back up your log with **Settings → Export** before changing devices.
+
+To apply the same formatting to code you edit later, run `npx prettier@3.9.9 --write dist/workout-tracker.js dist/workout-styles.css dist/index.html dist/service-worker.js` from the repository root. This formats source text; it does not publish the website.
 
 ## Data and privacy
 
