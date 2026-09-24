@@ -1,5 +1,11 @@
 # Changelog
 
+## Mobile toast visibility fix
+
+- Hide inactive notification toasts completely so long messages cannot leave a visible square on small screens.
+- Keep the slide and fade animation, and prevent hidden toasts from intercepting taps.
+- Refresh the offline app shell to serve the updated stylesheet.
+
 ## Source readability cleanup
 
 - Format application JavaScript, styles, HTML, service worker, and timer test.

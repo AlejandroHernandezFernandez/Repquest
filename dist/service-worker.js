@@ -1,5 +1,5 @@
 // Keep the offline shell current when application file names change.
-const CACHE = "repquest-shell-v1.02";
+const CACHE = "repquest-shell-v1.03";
 self.addEventListener("install", (event) => {
   event.waitUntil(
     caches

@@ -636,18 +636,28 @@ dialog .close {
   bottom: 30px;
   left: 50%;
   transform: translateX(-50%) translateY(120px);
+  /* Moving a toast a fixed distance can leave part of it visible on phones. */
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
   background: #293a22;
   color: white;
   padding: 15px 24px;
   border-radius: 14px;
   box-shadow: 0 10px 30px #0002;
-  transition: transform 0.3s;
+  transition:
+    transform 0.3s,
+    opacity 0.3s,
+    visibility 0.3s;
   z-index: 20;
   max-width: 90%;
   text-align: center;
 }
 #toast.show {
   transform: translateX(-50%) translateY(0);
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
 }
 .backup {
   display: flex;
