@@ -23,9 +23,11 @@
     <link rel="stylesheet" href="./workout-styles.css" />
   </head>
   <body>
+    <!-- render() replaces the page inside this container. -->
     <div id="app"></div>
     <div id="toast" role="status" aria-live="polite"></div>
     <dialog id="modal"></dialog>
+    <!-- Order matters: workout-tracker.js calls the helpers from timer.js. -->
     <script src="./timer.js" defer></script>
     <script src="./workout-tracker.js" defer></script>
   </body>
