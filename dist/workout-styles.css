@@ -2,13 +2,29 @@
 /* Base colors, type, and controls. */
 :root {
   font-family: "DM Sans", system-ui, sans-serif;
-  color: #26342d;
-  background: #f6f8f5;
-  font-size: 16px;
-  --green: #58cc02;
+  color: var(--ink);
+  background: var(--page);
+  --page: #f6f8f5;
+  --surface: #ffffff;
+  --input: #fafcf8;
+  --soft: #effadd;
   --ink: #26342d;
   --muted: #798079;
   --line: #e5e9e2;
+  --green: #58cc02;
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --page: #151a16;
+  --surface: #222a23;
+  --input: #2b352c;
+  --soft: #2b3a2a;
+  --green-panel: #263e29;
+  --green-border: #3c6540;
+  --green-text: #a2e37d;
+  --ink: #f0f4ee;
+  --muted: #b3bdb1;
+  --line: #3c493d;
 }
 * {
   box-sizing: border-box;
@@ -80,7 +96,7 @@ button {
   min-height: 100vh;
 }
 .sidebar {
-  background: white;
+  background: var(--surface);
   border-right: 1px solid var(--line);
   padding: 38px 22px;
   display: flex;
@@ -204,7 +220,7 @@ button {
   border-radius: 30px;
   padding: 9px 15px;
   font-size: 0.875rem;
-  background: white;
+  background: var(--surface);
   white-space: nowrap;
 }
 .layout {
@@ -219,7 +235,7 @@ button {
 }
 /* Shared cards and dashboard elements. */
 .card {
-  background: white;
+  background: var(--surface);
   border: 1px solid var(--line);
   border-radius: 20px;
   padding: 24px;
@@ -251,7 +267,7 @@ button {
 }
 .daycircle {
   border: 2px solid #e9ece5;
-  background: #f7f9f5;
+  background: var(--soft);
   height: 45px;
   width: 45px;
   border-radius: 50%;
@@ -311,7 +327,7 @@ button {
   border-radius: 12px;
   padding: 11px 17px;
   font-weight: 700;
-  background: white;
+  background: var(--surface);
 }
 .textbtn {
   color: #55a929;
@@ -320,7 +336,7 @@ button {
   padding: 8px 0;
 }
 .startcard {
-  background: #effadd;
+  background: var(--soft);
   border-color: #dcecc8;
   padding: 28px;
   position: relative;
@@ -369,7 +385,7 @@ button {
 .level {
   text-align: center;
   padding: 27px 24px;
-  background: #fff;
+  background: var(--surface);
 }
 .levelbadge {
   width: 93px;
@@ -466,7 +482,7 @@ button {
   letter-spacing: 1px;
 }
 .setnum {
-  background: #f0f3ed;
+  background: var(--soft);
   border-radius: 8px;
   text-align: center;
   padding: 10px;
@@ -476,16 +492,16 @@ button {
 input,
 select {
   padding: 12px;
-  border: 2px solid #e5e9e0;
+  border: 2px solid var(--line);
   border-radius: 10px;
-  background: #fafcf8;
+  background: var(--input);
   color: var(--ink);
   outline: none;
 }
 input:focus,
 select:focus {
   border-color: #90d94c;
-  background: white;
+  background: var(--input);
 }
 input[type="checkbox"] {
   appearance: none;
@@ -558,6 +574,39 @@ input[type="checkbox"]:checked:after {
   font-size: 0.875rem;
   white-space: nowrap;
 }
+
+/* Keep green accents subdued and readable against dark surfaces. */
+:root[data-theme="dark"] .nav button.active,
+:root[data-theme="dark"] .day.today:not(.done) .daycircle,
+:root[data-theme="dark"] .iconbox,
+:root[data-theme="dark"] .levelbadge,
+:root[data-theme="dark"] .xpchip,
+:root[data-theme="dark"] .avatar {
+  background: var(--green-panel);
+  color: var(--green-text);
+}
+:root[data-theme="dark"] .nav button.active,
+:root[data-theme="dark"] .levelbadge {
+  border-color: var(--green-border);
+}
+:root[data-theme="dark"] .levelbadge {
+  box-shadow: 0 5px 0 #1a2a1d;
+}
+:root[data-theme="dark"] .startcard {
+  border-color: var(--green-border);
+}
+:root[data-theme="dark"] .startcard p,
+:root[data-theme="dark"] .notice {
+  color: var(--muted);
+}
+:root[data-theme="dark"] .progressbar {
+  background: var(--green-panel);
+}
+:root[data-theme="dark"] .green,
+:root[data-theme="dark"] .day.today,
+:root[data-theme="dark"] .rule strong {
+  color: var(--green-text);
+}
 .field {
   display: grid;
   gap: 8px;
@@ -581,7 +630,7 @@ input[type="checkbox"]:checked:after {
   margin-bottom: 18px;
 }
 .notice {
-  background: #f5f8f0;
+  background: var(--soft);
   border-radius: 12px;
   padding: 15px;
   color: #7b8870;

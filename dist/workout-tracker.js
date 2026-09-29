@@ -3,6 +3,10 @@
 // storage, XP, screens, workout actions, and startup. Timer helpers are in timer.js.
 const $ = (s) => document.querySelector(s),
   KEY = "repquest-v1";
+  
+  const THEME_KEY = "repquest-theme";
+  let theme = localStorage.getItem(THEME_KEY) === "dark" ? "dark" : "light";
+  document.documentElement.dataset.theme = theme;
 const icons = {
   lift: '<path d="M3 9v6m4-9v12m10-12v12m4-9v6M7 12h10"/>',
   home: '<path d="m3 10 9-7 9 7v10H3Z"/><path d="M9 20v-7h6v7"/>',
@@ -288,7 +292,7 @@ function durationLabel(session) {
 function workoutClock(draft) {
   if (!hasStartTime(draft))
     return `<section class="card workout-clock"><div><strong>Duration wasn't tracked for this workout.</strong><p class="small muted">This draft predates the timer. Your sets are safe; you can start timing from now.</p></div><button class="secondary" id="start-timer">Start timer now</button></section>`;
-  return `<section class="card workout-clock"><div><div class="eyebrow">WORKOUT DURATION</div><span id="workout-timer" role="timer" aria-label="Elapsed workout time" aria-live="off">${formatDuration(getElapsedSeconds(draft.startedAt))}</span></div><span class="small muted">Keeps time while you switch screens or lock your phone.</span></section>`;
+  return `<section class="card workout-clock"><div><div class="eyebrow">WORKOUT DURATION</div><span id="workout-timer" role="timer" aria-label="Elapsed workout time" aria-live="off">${formatDuration(getElapsedSeconds(draft.startedAt))}</span></div></section>`;
 }
 function updateTimer() {
   const timer = document.getElementById("workout-timer");
@@ -452,8 +456,14 @@ function workout() {
     })
     .join(
       "",
-    )}<div class="workactions"><button class="secondary" id="addexercise">+ Add exercise</button><button class="primary" id="finish">${ic("check")} Finish workout</button></div><button class="textbtn muted" id="discard">Discard workout</button></div><aside class="stack"><section class="card"><div class="iconbox">${ic("bolt")}</div><h3 style="margin-top:18px">The work is the win.</h3><p class="muted small">Every training day earns 25 XP. Improvements earn a little extra.</p><div class="notice">Only checked sets are saved. Use 0 ${data.unit} for unweighted exercises. Keep exercise names consistent for fair comparisons.</div></section><p class="small muted">Draft saved on this device as you go.</p></aside></div>`;
-}
+    )}
+      <div class="workactions">
+        <button class="secondary" id="addexercise">+ Add exercise</button>
+        <button class="primary" id="finish">${ic("check")} Finish workout</button>
+      </div>
+      <button class="textbtn muted" id="discard">Discard workout</button>
+      </div></div>`;
+    }
 // Progress charts, workout history, and settings screens.
 function chart(points, unit) {
   if (points.length < 2)
@@ -515,8 +525,122 @@ function history(r) {
         "</div><strong>Your story starts with one session.</strong>Finish a workout to save your first entry.</div>"
   }</section>`;
 }
+
+// This is the SETTINGS page
 function settings() {
-  return `<div class="heading"><div><div class="eyebrow">MAKE IT YOURS</div><h1>Your training space</h1><p class="sub">A little setup for the way you train. · v1.01</p></div></div><div class="layout"><div class="stack"><section class="card"><h2>Training preferences</h2><div class="field"><label for="goal">Weekly workout goal</label><select id="goal">${[1, 2, 3, 4, 5, 6, 7].map((n) => `<option value="${n}" ${data.goal === n ? "selected" : ""}>${n} days a week</option>`).join("")}</select></div><div class="field"><label for="units">Weight unit</label><select id="units"><option value="lb" ${data.unit === "lb" ? "selected" : ""}>Pounds (lb)</option><option value="kg" ${data.unit === "kg" ? "selected" : ""}>Kilograms (kg)</option></select></div><p class="small muted">Switching units converts all saved weights and your current draft.</p></section><section class="card"><h2>Your data, backed up</h2><p class="muted">Workouts and bodyweight are saved on this device. Export a backup before changing phones or clearing browser data.</p><div class="backup"><button id="export" class="secondary">Export backup</button><button id="import" class="secondary">Restore backup</button><input id="importfile" type="file" accept="application/json,.json" hidden></div><p class="small muted">Backups include your history, settings, and current workout. There is no cross-device sync.</p></section><section class="card"><h2>Add to your iPhone</h2><p class="muted">Open this app in Safari, tap Share, then Add to Home Screen. Open it from the new icon and start logging there.</p><div class="notice">Keep a backup handy: Safari and your Home Screen app may have separate storage. You can restore your export in either one.</div></section></div><aside class="card" style="align-self:start"><h3>How XP works</h3><p class="small muted">25 XP for your first completed workout each day. Each exercise can earn one progress bonus per day: 15 for a heavier top set with at least the same reps, 10 for a rep best at the same weight, or 5 for another working set while maintaining earlier sets.</p><p class="small muted">Bonuses compare with the previous logged session, prioritize weight over reps over sets, and cap at 60 XP per day. Your first session establishes a baseline. Every 150 XP is a new level.</p><p class="small muted">Deleting a workout recalculates XP and comparisons. Rest days never subtract XP.</p></aside></div>`;
+  return `
+    <div class="heading">
+      <div>
+        <div class="eyebrow">MAKE IT YOURS</div>
+        <h1>Your training space</h1>
+        <p class="sub">A little setup for the way you train. · v1.01</p>
+      </div>
+    </div>
+
+    <div class="layout">
+      <div class="stack">
+        <section class="card">
+          <h2>Training preferences</h2>
+
+          <div class="field">
+            <label for="goal">Weekly workout goal</label>
+            <select id="goal">
+              ${[1, 2, 3, 4, 5, 6, 7]
+                .map(
+                  (n) => `
+                    <option value="${n}" ${data.goal === n ? "selected" : ""}>
+                      ${n} days a week
+                    </option>
+                  `,
+                )
+                .join("")}
+            </select>
+          </div>
+
+          <div class="field">
+            <label for="units">Weight unit</label>
+            <select id="units">
+              <option value="lb" ${data.unit === "lb" ? "selected" : ""}>
+                Pounds (lb)
+              </option>
+              <option value="kg" ${data.unit === "kg" ? "selected" : ""}>
+                Kilograms (kg)
+              </option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label for="theme">Appearance</label>
+            <select id="theme">
+              <option value="light" ${theme === "light" ? "selected" : ""}>
+                Light
+              </option>
+              <option value="dark" ${theme === "dark" ? "selected" : ""}>
+                Dark
+              </option>
+            </select>
+          </div>
+
+          <p class="small muted">
+            Switching units converts all saved weights and your current draft.
+          </p>
+        </section>
+
+        <section class="card">
+          <h2>Your data, backed up</h2>
+          <p class="muted">
+            Workouts and bodyweight are saved on this device. Export a backup
+            before changing phones or clearing browser data.
+          </p>
+          <div class="backup">
+            <button id="export" class="secondary">Export backup</button>
+            <button id="import" class="secondary">Restore backup</button>
+            <input
+              id="importfile"
+              type="file"
+              accept="application/json,.json"
+              hidden
+            >
+          </div>
+          <p class="small muted">
+            Backups include your history, settings, and current workout.
+            There is no cross-device sync.
+          </p>
+        </section>
+
+        <section class="card">
+          <h2>Add to your iPhone</h2>
+          <p class="muted">
+            Open this app in Safari, tap Share, then Add to Home Screen.
+            Open it from the new icon and start logging there.
+          </p>
+          <div class="notice">
+            Keep a backup handy: Safari and your Home Screen app may have
+            separate storage. You can restore your export in either one.
+          </div>
+        </section>
+      </div>
+
+      <aside class="card" style="align-self:start">
+        <h3>How XP works</h3>
+        <p class="small muted">
+          25 XP for your first completed workout each day. Each exercise can
+          earn one progress bonus per day: 15 for a heavier top set with at
+          least the same reps, 10 for a rep best at the same weight, or 5 for
+          another working set while maintaining earlier sets.
+        </p>
+        <p class="small muted">
+          Bonuses compare with the previous logged session, prioritize weight
+          over reps over sets, and cap at 60 XP per day. Your first session
+          establishes a baseline. Every 150 XP is a new level.
+        </p>
+        <p class="small muted">
+          Deleting a workout recalculates XP and comparisons. Rest days never
+          subtract XP.
+        </p>
+      </aside>
+    </div>
+  `;
 }
 function show(html) {
   $("#modal").innerHTML =
@@ -750,6 +874,13 @@ function bind() {
           },
         )),
   );
+  //Changed the theme colors Dark/Light
+  if ($("#theme"))
+    $("#theme").onchange = (e) => {
+      theme = e.target.value;
+      document.documentElement.dataset.theme = theme;
+      localStorage.setItem(THEME_KEY, theme);
+    };
   if ($("#goal"))
     $("#goal").onchange = (e) => {
       data.goal = Number(e.target.value);
