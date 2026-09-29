@@ -1,5 +1,6 @@
 // Keep the offline shell current when application file names change.
 const CACHE = "repquest-shell-v1.03";
+// Cache the app shell during installation so it can open without a connection.
 self.addEventListener("install", (event) => {
   event.waitUntil(
     caches
@@ -18,6 +19,7 @@ self.addEventListener("install", (event) => {
   );
   self.skipWaiting();
 });
+// Remove only obsolete Repquest caches; workout logs are in localStorage.
 self.addEventListener("activate", (event) =>
   event.waitUntil(
     caches
@@ -32,6 +34,7 @@ self.addEventListener("activate", (event) =>
       .then(() => self.clients.claim()),
   ),
 );
+// Try the network first and update the cache; use cached files if offline.
 self.addEventListener("fetch", (event) => {
   const url = new URL(event.request.url);
   if (event.request.method !== "GET" || url.origin !== location.origin) return;
@@ -57,8 +60,6 @@ self.addEventListener("fetch", (event) => {
         }
         return response;
       })
-      .catch(() =>
-        caches.match(event.request).then((r) => r || Response.error()),
-      ),
+      .catch(() => caches.match(event.request).then((r) => r || Response.error())),
   );
 });

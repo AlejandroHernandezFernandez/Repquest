@@ -1,5 +1,6 @@
 @import url("https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Nunito:wght@600;700;800;900&display=swap");
 /* Base colors, type, and controls. */
+/* Theme tokens: surfaces use these variables; dark mode overrides their values. */
 :root {
   font-family: "DM Sans", system-ui, sans-serif;
   color: var(--ink);
@@ -13,6 +14,7 @@
   --line: #e5e9e2;
   --green: #58cc02;
 }
+/* JS sets this attribute on <html> when Appearance changes in Settings. */
 :root[data-theme="dark"] {
   color-scheme: dark;
   --page: #151a16;
@@ -90,6 +92,7 @@ button {
   color: inherit;
 }
 /* App shell and navigation. */
+/* Desktop app shell: sidebar plus main content. Mobile overrides are below. */
 .shell {
   display: grid;
   grid-template-columns: 232px 1fr;
@@ -680,6 +683,8 @@ dialog .close {
   color: var(--muted);
   margin-top: 5px;
 }
+/* Alerts need visibility as well as movement: translation alone can leave a
+   tall message on screen. Keep the hidden state and .show state together. */
 #toast {
   position: fixed;
   bottom: 30px;

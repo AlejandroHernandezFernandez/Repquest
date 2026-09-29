@@ -8,7 +8,7 @@ A gamified workout tracker built with HTML, CSS, and JavaScript. Log workouts, t
 - Saved in-progress workouts and completed workout history.
 - Progress comparisons and XP for workout completion and improved performance.
 - Bodyweight logging and progress charts.
-- Weekly goals and pounds/kilograms settings.
+- Weekly goals, pounds/kilograms settings, and saved light/dark appearance.
 - JSON backup export and restore.
 - Web app manifest and service worker for an installable app and cached app shell.
 
@@ -37,22 +37,57 @@ The `dist` folder contains the editable application source, not generated build 
 
 ## Where to make a change
 
-| To change | Look for in `dist/workout-tracker.js` |
-| --- | --- |
-| Saved data and JSON backup checks | `KEY`, `data`, `validate()`, `save()` |
-| XP and progressive overload | `rewards()`, `previous()` |
-| Home screen and recent activity | `home()`, `recent()` |
-| Preset workouts and set editing | `routines`, `start()`, `workout()`, `bind()` |
-| Progress charts and body weight | `chart()`, `progress()` |
-| Past workouts and preferences | `history()`, `settings()` |
-| Complete a workout | `finish()` |
-| Page navigation and event handlers | `go()`, `render()`, `bind()` |
+| To change                          | Look for in `dist/workout-tracker.js`                                    |
+| ---------------------------------- | ------------------------------------------------------------------------ |
+| Appearance preference              | `THEME_KEY`, `theme`, `settings()`, and the `#theme` handler in `bind()` |
+| Saved data and JSON backup checks  | `KEY`, `data`, `validate()`, `save()`                                    |
+| XP and progressive overload        | `rewards()`, `previous()`                                                |
+| Home screen and recent activity    | `home()`, `recent()`                                                     |
+| Preset workouts and set editing    | `routines`, `start()`, `workout()`, `bind()`                             |
+| Progress charts and body weight    | `chart()`, `progress()`                                                  |
+| Past workouts and preferences      | `history()`, `settings()`                                                |
+| Complete a workout                 | `finish()`                                                               |
+| Page navigation and event handlers | `go()`, `render()`, `bind()`                                             |
 
 Screen functions generate the HTML for each page. `render()` inserts that HTML, then `bind()` reconnects the buttons and inputs on the new screen. Styles for the same UI are in `dist/workout-styles.css`, grouped by section comments.
 
-`data.sessions` contains completed workouts, `data.weights` contains body weight entries, and `data.draft` contains a workout in progress. The `repquest-v1` storage key must stay the same to keep existing browser data. A source update at the same URL keeps that data; a different domain or browser has separate storage. Back up your log with **Settings → Export** before changing devices.
+`data.sessions` contains completed workouts, `data.weights` contains body weight entries, and `data.draft` contains a workout in progress. The `repquest-v1` storage key must stay the same to keep existing browser data. A source update at the same URL keeps that data; a different domain, port, or browser has separate storage. The appearance preference uses a separate `repquest-theme` key and is not included in workout backups. Back up your log with **Settings → Export** before changing devices.
 
-To apply the same formatting to code you edit later, run `npx prettier@3.9.9 --write dist/workout-tracker.js dist/workout-styles.css dist/index.html dist/service-worker.js` from the repository root. This formats source text; it does not publish the website.
+## Editing together
+
+1. Pull the latest `main` before starting, then create a branch for your change.
+2. Work directly in `dist/`; there is no build step.
+3. Find the screen function in the table above, then its matching handler in `bind()`.
+4. Run locally and try your change in both themes and a narrow mobile viewport.
+5. Commit, push your branch, and open a pull request so the other person can review it.
+
+### Reading the templates
+
+- Backticks define multiline HTML strings; `${expression}` inserts a JavaScript value.
+- `.map(...)` builds one piece of markup per item, and `.join("")` combines them.
+- `/* HTML */` tells the formatter to indent the HTML inside those strings.
+- `esc(...)` protects names typed by the user when they are inserted into markup.
+- IDs such as `id="theme"` connect markup to `$("#theme")` in `bind()`.
+- Attributes such as `data-ex`, `data-set`, and `data-field` identify which draft
+  exercise, set, and field an input edits.
+- `render()` replaces the DOM, so new controls need their handlers attached again.
+- `save()` writes workout state; changing visible HTML alone does not save data.
+
+### Keeping formatting readable
+
+The repository's `.prettierrc.json` configures indentation for embedded HTML.
+Keep the `/* HTML */` comment when adding or editing a markup template.
+Run from the repository root:
+
+```sh
+npx prettier@3.9.9 --write dist/workout-tracker.js dist/workout-styles.css dist/timer.js dist/index.html dist/service-worker.js tests/timer.test.cjs README.md
+node tests/timer.test.cjs
+```
+
+In VS Code, a Prettier formatter extension can use the same project configuration.
+Keep CSS themes in the `:root` sections; dark-only component overrides are grouped
+under the green-accent comment. The `#toast` hidden state and `#toast.show` visible
+state must both be retained to prevent the mobile alert bug from returning.
 
 ## Data and privacy
 

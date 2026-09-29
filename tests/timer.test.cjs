@@ -30,6 +30,8 @@ const context = vm.createContext({
     },
   },
   document: {
+    // The appearance setting writes data-theme on the root HTML element.
+    documentElement: { dataset: {} },
     querySelector: (s) => elements.get(s) || null,
     getElementById: (id) => elements.get("#" + id) || null,
     querySelectorAll: () => [],
@@ -49,10 +51,7 @@ const context = vm.createContext({
   console,
 });
 const run = (code) => vm.runInContext(code, context);
-vm.runInContext(
-  fs.readFileSync(path.join(root, "dist/timer.js"), "utf8"),
-  context,
-);
+vm.runInContext(fs.readFileSync(path.join(root, "dist/timer.js"), "utf8"), context);
 vm.runInContext(
   fs
     .readFileSync(path.join(root, "dist/workout-tracker.js"), "utf8")
@@ -83,9 +82,7 @@ elements.set("#workout-timer", node());
 run("syncTimer()");
 assert.equal(elements.get("#workout-timer").textContent, "0:30:00");
 // Simulate reopening: recover saved draft rather than resetting its timestamp.
-run(
-  "data=JSON.parse(localStorage.getItem('repquest-v1'));validate(data);syncTimer()",
-);
+run("data=JSON.parse(localStorage.getItem('repquest-v1'));validate(data);syncTimer()");
 assert.equal(run("data.draft.startedAt"), originalStart);
 assert.equal(elements.get("#workout-timer").textContent, "0:30:00");
 run("data.draft.exercises[0].sets[0]={weight:100,reps:8,done:true};");
@@ -110,9 +107,7 @@ assert.equal(run("data.sessions[1].durationSeconds"), undefined);
 assert.equal(run("JSON.stringify(data.sessions.slice(0,1))"), before);
 // Optional fields preserve old backups and reject malformed timing data.
 run("validate({version:1,sessions:[],weights:[],goal:4,unit:'lb',draft:null})");
-assert.throws(() =>
-  run("validateTiming({draft:{startedAt:'bad'},sessions:[]})"),
-);
+assert.throws(() => run("validateTiming({draft:{startedAt:'bad'},sessions:[]})"));
 assert.throws(() => run("validateTiming({sessions:[{durationSeconds:-1}]})"));
 run("data.draft={name:'Old draft',date:today(),exercises:[]};");
 elements.set("#start-timer", node());
