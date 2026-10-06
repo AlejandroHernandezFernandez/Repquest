@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.03
+
+- Add streaks that survive up to three inactive days, with a workout-based multiplier that grows by 0.2x up to 3.0x.
+- Add a live flame streak indicator beside the XP bar with larger, color-shifting milestone flames at 7, 30, 90, 180, and 365 days.
+- Add +10 XP for the first logged session of an exercise and +25 XP for new estimated-strength PRs.
+- Replace the workout-complete popup with tap-through animated reward cards and a final XP deposit animation into the top-bar meter.
+- Update the Settings XP explanation and refresh the offline app-shell cache.
+
 ## Mobile toast visibility fix
 
 - Hide inactive notification toasts completely so long messages cannot leave a visible square on small screens.

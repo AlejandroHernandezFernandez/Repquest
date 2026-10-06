@@ -1014,3 +1014,336 @@ dialog .close {
   margin: 6px 10px;
   font-variant-numeric: tabular-nums;
 }
+
+
+/* v1.03 streak indicator and reward celebration. */
+.streakbadge {
+  --flame-outer: #f08a24;
+  --flame-inner: #ffd166;
+  --flame-glow: #f08a2455;
+  --flame-scale: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 48px;
+  justify-content: center;
+  padding: 5px 9px 5px 7px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--flame-outer) 10%, var(--surface));
+  border: 1px solid color-mix(in srgb, var(--flame-outer) 28%, var(--line));
+  color: var(--flame-outer);
+  box-shadow: 0 0 0 transparent;
+}
+.streakbadge strong {
+  color: var(--ink);
+  font-family: "Nunito", system-ui, sans-serif;
+  font-size: 0.9rem;
+  line-height: 1;
+}
+.flame-svg {
+  width: 24px;
+  height: 27px;
+  overflow: visible;
+  transform-origin: 50% 88%;
+}
+.flame-outer {
+  fill: var(--flame-outer);
+  filter: drop-shadow(0 3px 7px var(--flame-glow));
+}
+.flame-inner {
+  fill: var(--flame-inner);
+}
+.streak-tier-0 {
+  --flame-outer: #a9afa8;
+  --flame-inner: #d8dcd7;
+  --flame-glow: transparent;
+}
+.streak-tier-1 {
+  --flame-outer: #ff8a1f;
+  --flame-inner: #ffd166;
+  --flame-glow: #ff8a1f66;
+  --flame-scale: 1;
+}
+.streak-tier-2 {
+  --flame-outer: #ff4f2f;
+  --flame-inner: #ffb347;
+  --flame-glow: #ff4f2f77;
+  --flame-scale: 1.05;
+}
+.streak-tier-3 {
+  --flame-outer: #3997ff;
+  --flame-inner: #bde5ff;
+  --flame-glow: #3997ff88;
+  --flame-scale: 1.1;
+}
+.streak-tier-4 {
+  --flame-outer: #8f5cff;
+  --flame-inner: #e1d3ff;
+  --flame-glow: #8f5cff88;
+  --flame-scale: 1.15;
+}
+.streak-tier-5 {
+  --flame-outer: #20c9d8;
+  --flame-inner: #e9ffff;
+  --flame-glow: #20c9d899;
+  --flame-scale: 1.2;
+}
+.streak-tier-6 {
+  --flame-outer: #f1b92f;
+  --flame-inner: #fff8cf;
+  --flame-glow: #f1b92faa;
+  --flame-scale: 1.28;
+}
+.streakbadge .flame-svg {
+  transform: scale(var(--flame-scale));
+}
+.streak-pop .flame-svg {
+  animation: flame-ignite 0.72s cubic-bezier(.2,.9,.2,1);
+}
+.streak-milestone-pop {
+  animation: streak-badge-burst 1s cubic-bezier(.2,.9,.2,1);
+}
+.streak-milestone-pop .flame-svg {
+  animation: flame-milestone 1s cubic-bezier(.15,.9,.2,1);
+}
+@keyframes flame-ignite {
+  0% { transform: scale(0.18) translateY(8px); opacity: 0; }
+  45% { transform: scale(calc(var(--flame-scale) * 1.42)) translateY(-3px); opacity: 1; }
+  70% { transform: scale(calc(var(--flame-scale) * 0.9)); }
+  100% { transform: scale(var(--flame-scale)); opacity: 1; }
+}
+@keyframes flame-milestone {
+  0% { transform: scale(0.2); opacity: 0; }
+  38% { transform: scale(calc(var(--flame-scale) * 1.85)) rotate(-7deg); opacity: 1; }
+  62% { transform: scale(calc(var(--flame-scale) * 1.2)) rotate(5deg); }
+  100% { transform: scale(var(--flame-scale)) rotate(0); }
+}
+@keyframes streak-badge-burst {
+  0%, 100% { box-shadow: 0 0 0 transparent; }
+  45% { box-shadow: 0 0 0 9px color-mix(in srgb, var(--flame-outer) 15%, transparent), 0 0 32px var(--flame-glow); }
+}
+
+dialog.reward-dialog {
+  max-width: 440px;
+  padding: 30px;
+  overflow: hidden;
+  text-align: center;
+  background:
+    radial-gradient(circle at 50% 0%, color-mix(in srgb, var(--green) 8%, transparent), transparent 46%),
+    var(--surface);
+}
+.reward-dialog .reward-skip {
+  position: absolute;
+  top: 14px;
+  right: 16px;
+  z-index: 2;
+  float: none;
+}
+.reward-step {
+  min-height: 330px;
+  display: grid;
+  justify-items: center;
+  align-content: center;
+  gap: 12px;
+  padding: 10px 2px 2px;
+  animation: reward-step-in 0.42s cubic-bezier(.2,.85,.2,1);
+}
+.reward-step h2 {
+  font-size: 1.75rem;
+}
+.reward-step p {
+  margin: 0;
+  max-width: 330px;
+}
+.reward-icon-stage {
+  width: 96px;
+  height: 96px;
+  display: grid;
+  place-items: center;
+  border-radius: 30px;
+  background: var(--soft);
+  color: var(--green);
+  margin-bottom: 6px;
+  animation: reward-icon-pop 0.65s cubic-bezier(.2,.9,.2,1);
+}
+.reward-pr .reward-icon-stage {
+  color: #8f5cff;
+  background: color-mix(in srgb, #8f5cff 11%, var(--surface));
+}
+.reward-first .reward-icon-stage {
+  color: #20a66a;
+  background: color-mix(in srgb, #20a66a 11%, var(--surface));
+}
+.reward-workout .reward-icon-stage,
+.bank-icon {
+  color: #d89f06;
+  background: color-mix(in srgb, #e0a800 12%, var(--surface));
+}
+.reward-xp {
+  font: 900 2.65rem/1 "Nunito", system-ui, sans-serif;
+  color: #d79f08;
+  letter-spacing: -1.5px;
+  margin-top: 8px;
+  animation: reward-xp-pop 0.8s cubic-bezier(.2,.9,.2,1);
+}
+.reward-detail {
+  font-weight: 700;
+  color: var(--ink) !important;
+}
+.reward-progress {
+  display: flex;
+  justify-content: center;
+  gap: 7px;
+  margin: 8px 0 18px;
+}
+.reward-progress span {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--line);
+  transition: width 0.25s, background 0.25s;
+}
+.reward-progress span.active {
+  width: 20px;
+  border-radius: 99px;
+  background: var(--green);
+}
+.reward-next {
+  min-height: 50px;
+}
+.reward-bank-total {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 13px;
+  width: 100%;
+  max-width: 320px;
+  padding: 16px;
+  margin-top: 8px;
+  border: 1px solid var(--line);
+  border-radius: 15px;
+  background: var(--input);
+  font-family: "Nunito", system-ui, sans-serif;
+}
+.reward-bank-total strong {
+  color: #d49a00;
+  font-size: 1.15rem;
+}
+.bank-arrow {
+  color: var(--muted);
+  font-weight: 900;
+}
+.streak-flame-stage {
+  --flame-outer: #ff8a1f;
+  --flame-inner: #ffd166;
+  --flame-glow: #ff8a1f88;
+  --flame-scale: 1;
+  position: relative;
+  width: 150px;
+  height: 160px;
+  display: grid;
+  place-items: center;
+  margin-bottom: 2px;
+}
+.streak-flame-stage .reward-flame {
+  width: 110px;
+  height: 126px;
+  transform: scale(var(--flame-scale));
+  animation: flame-ignite 0.9s cubic-bezier(.2,.9,.2,1);
+}
+.streak-flame-stage.milestone .reward-flame {
+  animation: flame-milestone 1.15s cubic-bezier(.15,.9,.2,1);
+}
+.spark {
+  position: absolute;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--flame-inner);
+  box-shadow: 0 0 12px var(--flame-glow);
+  opacity: 0;
+  animation: spark-rise 1.15s ease-out 0.25s;
+}
+.spark-1 { left: 30px; bottom: 34px; }
+.spark-2 { right: 28px; bottom: 48px; animation-delay: 0.35s; }
+.spark-3 { left: 53px; bottom: 18px; animation-delay: 0.18s; }
+.spark-4 { right: 48px; bottom: 20px; animation-delay: 0.48s; }
+.xp-fly {
+  position: fixed;
+  inset: 0 auto auto 0;
+  z-index: 1000;
+  width: 84px;
+  height: 48px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  background: #f4c430;
+  color: #4f3b00;
+  border: 2px solid #ffe58a;
+  box-shadow: 0 14px 35px #0003, 0 0 28px #f4c43066;
+  font: 900 0.95rem/1 "Nunito", system-ui, sans-serif;
+  pointer-events: none;
+}
+.xp-bank-hit {
+  animation: xp-bank-hit 0.75s cubic-bezier(.2,.9,.2,1);
+}
+@keyframes reward-step-in {
+  from { opacity: 0; transform: translateY(16px) scale(0.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes reward-icon-pop {
+  0% { transform: scale(0.35) rotate(-10deg); opacity: 0; }
+  58% { transform: scale(1.13) rotate(3deg); opacity: 1; }
+  100% { transform: scale(1) rotate(0); }
+}
+@keyframes reward-xp-pop {
+  0% { transform: scale(0.65); opacity: 0; }
+  50% { transform: scale(1.12); opacity: 1; }
+  100% { transform: scale(1); }
+}
+@keyframes spark-rise {
+  0% { transform: translateY(8px) scale(0.4); opacity: 0; }
+  30% { opacity: 1; }
+  100% { transform: translateY(-70px) scale(0); opacity: 0; }
+}
+@keyframes xp-bank-hit {
+  0%, 100% { transform: scale(1); filter: none; }
+  42% { transform: scale(1.13); filter: drop-shadow(0 0 10px #f4c430); }
+}
+@media (max-width: 650px) {
+  .topstats {
+    gap: 10px;
+  }
+  .streakbadge {
+    min-width: 43px;
+    padding: 4px 7px 4px 5px;
+  }
+  .streakbadge .flame-svg {
+    width: 22px;
+    height: 24px;
+  }
+}
+@media (max-width: 430px) {
+  .topstats .levelstat {
+    display: none;
+  }
+  dialog.reward-dialog {
+    padding: 24px 20px;
+  }
+  .reward-step {
+    min-height: 310px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .streak-pop .flame-svg,
+  .streak-milestone-pop,
+  .streak-milestone-pop .flame-svg,
+  .reward-step,
+  .reward-icon-stage,
+  .reward-xp,
+  .streak-flame-stage .reward-flame,
+  .spark,
+  .xp-bank-hit {
+    animation: none !important;
+  }
+}

@@ -8,6 +8,7 @@ const $ = (s) => document.querySelector(s),
 
 // Appearance is saved separately from workout backups, on this browser/origin.
 const THEME_KEY = "repquest-theme";
+const STREAK_SEEN_KEY = "repquest-streak-seen-v1.03";
 let theme = localStorage.getItem(THEME_KEY) === "dark" ? "dark" : "light";
 document.documentElement.dataset.theme = theme;
 const icons = {
@@ -219,48 +220,116 @@ const sorted = () =>
     (a, b) => a.date.localeCompare(b.date) || a.id.localeCompare(b.id),
   );
 // XP and progress: calculate earned rewards from completed workouts and sets.
+function calendarDaysBetween(from, to) {
+  const ordinal = (value) => {
+    const [year, month, date] = value.split("-").map(Number);
+    return Date.UTC(year, month - 1, date) / 86400000;
+  };
+  return ordinal(to) - ordinal(from);
+}
+
+function streakTier(days) {
+  if (days >= 365) return 6;
+  if (days >= 180) return 5;
+  if (days >= 90) return 4;
+  if (days >= 30) return 3;
+  if (days >= 7) return 2;
+  if (days >= 1) return 1;
+  return 0;
+}
+
+const streakMilestones = new Set([7, 30, 90, 180, 365]);
+const isStreakMilestone = (days) => streakMilestones.has(days);
+
+function streakMilestoneLabel(days) {
+  if (days >= 365) return "ONE YEAR INFERNO";
+  if (days >= 180) return "HALF-YEAR BLAZE";
+  if (days >= 90) return "90-DAY FIRE";
+  if (days >= 30) return "30-DAY FLAME";
+  if (days >= 7) return "ONE-WEEK STREAK";
+  return "STREAK ACTIVE";
+}
+
+function flameIcon(extraClass = "") {
+  return /* HTML */ `
+    <svg
+      class="flame-svg ${extraClass}"
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <path
+        class="flame-outer"
+        d="M12 22c4.97 0 9-4.03 9-9 0-4.5-3-7-6-11 .5 4-2 6-4 8-1.5 1.5-2.5 3-2 5-2-1-3-3-3-5-2 2-3 4.5-3 7 0 4.97 4.03 9 9 9Z"
+      />
+      <path
+        class="flame-inner"
+        d="M12 21c-2.2 0-4-1.8-4-4 0-1.4.7-2.7 2-4.2-.1 1.7.9 2.6 1.8 3.3.7-.9 1.5-1.9 1.2-3.9 1.8 1.7 2.8 3.6 2.8 5.5 0 1.9-1.7 3.3-3.8 3.3Z"
+      />
+    </svg>
+  `;
+}
+
+// XP and progress: calculate rewards, active streak state, and award details
+// entirely from completed sessions so edits/deletions remain self-correcting.
 function rewards() {
   const dates = new Set(),
     seenExercises = new Set(),
     bestScores = new Map(),
-    result = { total: 0, prs: 0, byId: {} };
+    result = {
+      total: 0,
+      prs: 0,
+      byId: {},
+      streakDays: 0,
+      streakWorkouts: 0,
+      streakMultiplier: 1,
+      streakTier: 0,
+    };
 
   let previousWorkoutDate = null;
+  let streakStartDate = null;
   let streakWorkouts = 0;
 
   // Replay sessions chronologically so deleting/editing workouts
   // automatically recalculates XP, streaks, and PRs.
   for (const s of sorted()) {
     const daysSinceLastWorkout = previousWorkoutDate
-      ? (new Date(s.date + "T12:00:00") -
-          new Date(previousWorkoutDate + "T12:00:00")) /
-        86400000
+      ? calendarDaysBetween(previousWorkoutDate, s.date)
       : null;
 
-    // The streak survives through 3 inactive days.
-    // A 5-day gap means 4 full inactive days passed.
+    // Up to three inactive days are allowed between qualifying workout days.
+    // A gap of five means four full inactive days passed, so a new streak begins.
     if (daysSinceLastWorkout === null || daysSinceLastWorkout >= 5) {
+      streakStartDate = s.date;
       streakWorkouts = 1;
     } else if (daysSinceLastWorkout > 0) {
-      // Same-day workouts do not increase the multiplier.
+      // Same-day workouts do not advance the streak multiplier.
       streakWorkouts += 1;
     }
 
     const multiplier = Math.min(1 + (streakWorkouts - 1) * 0.2, 3);
     const workoutXp = Math.round(100 * multiplier);
+    const firstWorkoutToday = !dates.has(s.date);
 
-    // Only the first completed workout of the day earns completion XP.
-    let xp = dates.has(s.date) ? 0 : workoutXp;
+    let xp = firstWorkoutToday ? workoutXp : 0;
     dates.add(s.date);
 
-    const reasons = xp
+    const reasons = firstWorkoutToday
       ? [`Workout completed +${workoutXp} (${multiplier.toFixed(1)}x)`]
+      : [];
+    const awards = firstWorkoutToday
+      ? [
+          {
+            type: "workout",
+            title: "Workout complete",
+            detail: `${multiplier.toFixed(1)}x streak multiplier`,
+            xp: workoutXp,
+          },
+        ]
       : [];
 
     for (const e of s.exercises) {
       const key = norm(e.name);
-
-      // Find the strongest set in this workout for this exercise.
       const currentBestScore = Math.max(
         ...e.sets.map((set) => {
           const effectiveReps = Math.min(set.reps, 12);
@@ -268,42 +337,83 @@ function rewards() {
         }),
       );
 
-      // First time ever performing this exercise.
       if (!seenExercises.has(key)) {
         xp += 10;
         reasons.push(`${e.name}: First time +10`);
-
+        awards.push({
+          type: "first",
+          title: "New exercise unlocked",
+          detail: e.name,
+          xp: 10,
+        });
         seenExercises.add(key);
         bestScores.set(key, currentBestScore);
-
-        // First performance establishes the baseline.
-        // It does not count as a PR.
         continue;
       }
 
       const previousBestScore = bestScores.get(key);
-
-      // A PR happens when this workout beats the best strength score
-      // previously recorded for this exercise.
       if (currentBestScore > previousBestScore) {
         xp += 25;
         result.prs += 1;
         reasons.push(`${e.name}: New strength PR +25`);
-
+        awards.push({
+          type: "pr",
+          title: "New strength PR",
+          detail: e.name,
+          xp: 25,
+        });
         bestScores.set(key, currentBestScore);
       }
     }
 
     result.total += xp;
-    result.byId[s.id] = { xp, reasons };
-
-    // This workout becomes the previous workout for the next iteration.
+    result.byId[s.id] = { xp, reasons, awards, multiplier };
     previousWorkoutDate = s.date;
   }
 
-  return result;
+  // The displayed streak counts calendar days, including allowed rest days.
+  // The multiplier only advances when another qualifying workout day is logged.
+  if (previousWorkoutDate && streakStartDate) {
+    const inactiveDays = calendarDaysBetween(previousWorkoutDate, today());
+    if (inactiveDays <= 3) {
+      result.streakDays = calendarDaysBetween(streakStartDate, today()) + 1;
+      result.streakWorkouts = streakWorkouts;
+      result.streakMultiplier = Math.min(1 + (streakWorkouts - 1) * 0.2, 3);
+    }
+  }
 
+  result.streakTier = streakTier(result.streakDays);
+  return result;
 }
+
+function syncStreakIndicator(r) {
+  const badge = $(".streakbadge");
+  if (!badge) return;
+
+  let seen = 0;
+  try {
+    seen = Number(localStorage.getItem(STREAK_SEEN_KEY) || 0);
+  } catch {}
+
+  if (r.streakDays > 0 && r.streakDays !== seen) {
+    const animation = isStreakMilestone(r.streakDays)
+      ? "streak-milestone-pop"
+      : "streak-pop";
+    badge.classList.remove("streak-pop", "streak-milestone-pop");
+    void badge.offsetWidth;
+    badge.classList.add(animation);
+    badge.addEventListener(
+      "animationend",
+      () => badge.classList.remove(animation),
+      { once: true },
+    );
+  }
+
+  try {
+    localStorage.setItem(STREAK_SEEN_KEY, String(r.streakDays));
+  } catch {}
+}
+
 // Find the latest earlier result for this exercise when comparing performance.
 function previous(name, date = today()) {
   return sorted()
@@ -447,7 +557,14 @@ function render() {
                 <div class="xpfill" style="width: ${(levelXp / need) * 100}%"></div>
               </div>
             </div>
-            <span class="green">${ic("trophy")} Level ${level}</span>
+            <span
+              class="streakbadge streak-tier-${r.streakTier}"
+              aria-label="${r.streakDays} day streak"
+              title="${r.streakDays} day streak · ${r.streakMultiplier.toFixed(1)}x workout multiplier"
+            >
+              ${flameIcon()}<strong>${r.streakDays}</strong>
+            </span>
+            <span class="green levelstat">${ic("trophy")} Level ${level}</span>
             <span class="muted">${ic("target")} ${data.sessions.length} workouts</span>
           </div>
         </header>
@@ -476,6 +593,7 @@ function render() {
     .forEach((b) => (b.onclick = () => go(b.dataset.view)));
   bind();
   syncTimer();
+  syncStreakIndicator(r);
 }
 // Dashboard and recent workouts.
 function home(r) {
@@ -1091,7 +1209,7 @@ function settings() {
       <div>
         <div class="eyebrow">MAKE IT YOURS</div>
         <h1>Your training space</h1>
-        <p class="sub">A little setup for the way you train. · v1.01</p>
+        <p class="sub">A little setup for the way you train. · v1.03</p>
       </div>
     </div>
 
@@ -1173,19 +1291,20 @@ function settings() {
       <aside class="card" style="align-self: start">
         <h3>How XP works</h3>
         <p class="small muted">
-          25 XP for your first completed workout each day. Each exercise can earn one
-          progress bonus per day: 15 for a heavier top set with at least the same reps, 10
-          for a rep best at the same weight, or 5 for another working set while
-          maintaining earlier sets.
+          Your first completed workout of the day earns 100 XP times your active workout
+          multiplier. Each new qualifying workout day adds 0.2x, up to 3.0x.
         </p>
         <p class="small muted">
-          Bonuses compare with the previous logged session, prioritize weight over reps
-          over sets. Your first session establishes a baseline.
-          Level 1 takes 150 XP, and each level needs 25% more than the one before until level 25.
-          After that, every level costs the same.
+          A streak can survive up to three inactive days. The streak number follows actual
+          calendar days, while the multiplier only increases when you train. Four inactive
+          days resets the streak and multiplier.
         </p>
         <p class="small muted">
-          Deleting a workout recalculates XP and comparisons. Rest days never subtract XP.
+          Your first logged session of an exercise earns 10 XP. A new estimated-strength PR
+          earns 25 XP; reps above 12 are capped when calculating the strength score.
+        </p>
+        <p class="small muted">
+          Deleting a workout recalculates XP, streaks, and PRs from your remaining history.
         </p>
       </aside>
     </div>
@@ -1218,6 +1337,207 @@ function confirmAction(title, description, fn) {
     close();
   };
 }
+function rewardIcon(type) {
+  if (type === "pr") return ic("trophy", 36);
+  if (type === "first") return ic("plus", 36);
+  return ic("check", 36);
+}
+
+function paintTopbarXp(total) {
+  const info = levelInfo(total);
+  const xpText = $(".xptext");
+  const meter = $(".xpmeter");
+  const fill = meter?.querySelector(".xpfill");
+  const level = $(".levelstat");
+
+  if (xpText) xpText.innerHTML = `${ic("bolt")} ${total} XP`;
+  if (meter) {
+    meter.setAttribute("aria-label", `Progress to level ${info.level + 1}`);
+    meter.setAttribute("aria-valuemax", info.need);
+    meter.setAttribute("aria-valuenow", info.xp);
+  }
+  if (fill) fill.style.width = `${(info.xp / info.need) * 100}%`;
+  if (level) level.innerHTML = `${ic("trophy")} Level ${info.level}`;
+}
+
+async function animateXpDeposit(fromTotal, toTotal) {
+  paintTopbarXp(fromTotal);
+  if (toTotal <= fromTotal) {
+    paintTopbarXp(toTotal);
+    return;
+  }
+
+  const reducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+  const candidates = [$(".xpmeter"), $(".xptext")];
+  const target = candidates.find(
+    (element) => element && getComputedStyle(element).display !== "none",
+  );
+  const gain = toTotal - fromTotal;
+
+  if (!reducedMotion && target) {
+    const rect = target.getBoundingClientRect();
+    const orb = document.createElement("div");
+    orb.className = "xp-fly";
+    orb.textContent = `+${gain} XP`;
+    document.body.appendChild(orb);
+
+    const startX = window.innerWidth / 2 - 42;
+    const startY = window.innerHeight / 2 - 24;
+    const endX = rect.left + rect.width / 2 - 42;
+    const endY = rect.top + rect.height / 2 - 24;
+
+    const flight = orb.animate(
+      [
+        { transform: `translate(${startX}px, ${startY}px) scale(0.8)`, opacity: 0 },
+        {
+          transform: `translate(${startX}px, ${startY - 24}px) scale(1.08)`,
+          opacity: 1,
+          offset: 0.25,
+        },
+        { transform: `translate(${endX}px, ${endY}px) scale(0.35)`, opacity: 0.15 },
+      ],
+      { duration: 760, easing: "cubic-bezier(.2,.8,.2,1)", fill: "forwards" },
+    );
+
+    try {
+      await flight.finished;
+    } catch {}
+    orb.remove();
+  }
+
+  const start = performance.now();
+  const duration = reducedMotion ? 1 : 1150;
+  await new Promise((resolve) => {
+    const frame = (now) => {
+      const progress = Math.min(1, (now - start) / duration);
+      const eased = 1 - Math.pow(1 - progress, 3);
+      const value = Math.round(fromTotal + (toTotal - fromTotal) * eased);
+      paintTopbarXp(value);
+      if (progress < 1) requestAnimationFrame(frame);
+      else resolve();
+    };
+    requestAnimationFrame(frame);
+  });
+
+  paintTopbarXp(toTotal);
+  if (target) {
+    target.classList.remove("xp-bank-hit");
+    void target.offsetWidth;
+    target.classList.add("xp-bank-hit");
+    target.addEventListener("animationend", () => target.classList.remove("xp-bank-hit"), {
+      once: true,
+    });
+  }
+}
+
+function showRewardSequence(session, reward, beforeRewards, afterRewards) {
+  const modal = $("#modal");
+  const streakAdvanced =
+    session.date === today() &&
+    afterRewards.streakWorkouts > beforeRewards.streakWorkouts;
+
+  const steps = [
+    ...(streakAdvanced ? [{ kind: "streak" }] : []),
+    ...reward.awards.map((award) => ({ kind: "award", award })),
+    { kind: "bank" },
+  ];
+
+  let index = 0;
+  const beforeLevel = levelInfo(beforeRewards.total).level;
+  const afterLevel = levelInfo(afterRewards.total).level;
+
+  const draw = () => {
+    const step = steps[index];
+    const last = index === steps.length - 1;
+
+    let content = "";
+    if (step.kind === "streak") {
+      const milestone = isStreakMilestone(afterRewards.streakDays);
+      content = /* HTML */ `
+        <div class="reward-step streak-celebration streak-tier-${afterRewards.streakTier}">
+          <div class="streak-flame-stage ${milestone ? "milestone" : ""}">
+            ${flameIcon("reward-flame")}
+            <span class="spark spark-1"></span>
+            <span class="spark spark-2"></span>
+            <span class="spark spark-3"></span>
+            <span class="spark spark-4"></span>
+          </div>
+          <div class="eyebrow">${streakMilestoneLabel(afterRewards.streakDays)}</div>
+          <h2>${afterRewards.streakDays} day streak</h2>
+          <p>
+            The flame stays alive. Your workout multiplier is now
+            <strong>${afterRewards.streakMultiplier.toFixed(1)}x</strong>.
+          </p>
+        </div>
+      `;
+    } else if (step.kind === "award") {
+      const award = step.award;
+      content = /* HTML */ `
+        <div class="reward-step reward-${award.type}">
+          <div class="reward-icon-stage">${rewardIcon(award.type)}</div>
+          <div class="eyebrow">XP EARNED</div>
+          <h2>${esc(award.title)}</h2>
+          <p class="reward-detail">${esc(award.detail)}</p>
+          <div class="reward-xp">+${award.xp} XP</div>
+        </div>
+      `;
+    } else {
+      content = /* HTML */ `
+        <div class="reward-step reward-bank">
+          <div class="reward-icon-stage bank-icon">${ic("bolt", 38)}</div>
+          <div class="eyebrow">${afterLevel > beforeLevel ? "LEVEL UP" : "QUEST COMPLETE"}</div>
+          <h2>${afterLevel > beforeLevel ? `Level ${afterLevel} reached` : "Bank your XP"}</h2>
+          <p>
+            This workout earned <strong>+${reward.xp} XP</strong>. Send it home and watch
+            your XP bar grow.
+          </p>
+          <div class="reward-bank-total">
+            <span>${beforeRewards.total} XP</span>
+            <span class="bank-arrow">→</span>
+            <strong>${afterRewards.total} XP</strong>
+          </div>
+        </div>
+      `;
+    }
+
+    modal.classList.add("reward-dialog");
+    modal.innerHTML = /* HTML */ `
+      <button class="close reward-skip" aria-label="Skip reward animations">×</button>
+      ${content}
+      <div class="reward-progress" aria-label="Reward ${index + 1} of ${steps.length}">
+        ${steps
+          .map(
+            (_, i) =>
+              `<span class="${i <= index ? "active" : ""}" aria-hidden="true"></span>`,
+          )
+          .join("")}
+      </div>
+      <button class="primary full reward-next" id="reward-next">
+        ${last ? "Add XP to bar" : "Next"}
+      </button>
+    `;
+
+    $(".reward-skip").onclick = () => modal.close();
+    $("#reward-next").onclick = () => {
+      if (!last) {
+        index += 1;
+        draw();
+        return;
+      }
+      modal.close();
+      animateXpDeposit(beforeRewards.total, afterRewards.total);
+    };
+  };
+
+  modal.addEventListener(
+    "close",
+    () => modal.classList.remove("reward-dialog"),
+    { once: true },
+  );
+  draw();
+  modal.showModal();
+}
+
 // Complete a draft workout, calculate its result, and save it to history.
 function finish() {
   const d = data.draft;
@@ -1249,6 +1569,7 @@ function finish() {
     )
   )
     return toast("Completed sets need a weight of 0–2000 and 1–500 whole reps.");
+
   const s = {
     id: Date.now() + "-" + crypto.randomUUID(),
     date: d.date,
@@ -1256,33 +1577,24 @@ function finish() {
     exercises,
     ...(hasStartTime(d) ? { durationSeconds: getElapsedSeconds(d.startedAt) } : {}),
   };
-  // Keep the draft available if storage fails while completing the workout.
+
+  const beforeRewards = rewards();
   const prior = data.draft;
   data.sessions.push(s);
   data.draft = null;
+
   if (!save()) {
     data.sessions.pop();
     data.draft = prior;
     return;
   }
+
   navigator.storage?.persist?.().catch(() => {});
-  const r = rewards().byId[s.id];
+  const afterRewards = rewards();
+  const reward = afterRewards.byId[s.id];
+
   go("home");
-  show(/* HTML */ `
-    <div class="iconbox" style="margin-bottom: 20px">${ic("trophy")}</div>
-    <h2>That's another win.</h2>
-    <p>You showed up and put in the work.</p>
-    ${durationLabel(s)}
-    <div class="levelbadge" style="font-size: 1.7rem">+${r.xp}</div>
-    <p style="text-align: center">XP earned</p>
-    <div class="notice">
-      ${r.reasons.map(esc).join("<br>") || "Another session logged. Today’s completion XP was already earned."}
-    </div>
-    <button class="primary full" style="margin-top: 20px" id="celebrate">
-      Keep the momentum
-    </button>
-  `);
-  $("#celebrate").onclick = close;
+  showRewardSequence(s, reward, beforeRewards, afterRewards);
 }
 // Wire up buttons and inputs for the currently rendered screen.
 function bind() {
