@@ -192,6 +192,27 @@ function toast(t) {
   clearTimeout(window.toastTimer);
   window.toastTimer = setTimeout(() => $("#toast").classList.remove("show"), 4500);
 }
+const XP_BASE = 150; // XP needed to go from level 1 to level 2
+const XP_GROWTH = 1.25; // each level needs 25% more than the last
+
+// XP needed to finish level n. Rounding from the base each time avoids drift.
+  const GROWTH_STOPS_AT = 25; // add this under XP_GROWTH
+  const xpForLevel = (n) =>
+    Math.round(XP_BASE * XP_GROWTH ** (Math.min(n, GROWTH_STOPS_AT) - 1));
+
+// Turn total XP into { level, xp earned inside this level, xp needed for this level }.
+function levelInfo(total) {
+  let level = 1,
+    need = xpForLevel(1),
+    left = total;
+  while (left >= need) {
+    left -= need;
+    level++;
+    need = xpForLevel(level);
+  }
+  return { level, xp: left, need };
+}
+
 const norm = (s) => s.trim().toLowerCase();
 const sorted = () =>
   [...data.sessions].sort(
@@ -375,7 +396,7 @@ function go(v) {
 // Replace the screen markup, then reconnect handlers to the newly created elements.
 function render() {
   const r = rewards(),
-    level = Math.floor(r.total / 150) + 1;
+  { level, xp: levelXp, need } = levelInfo(r.total);
   $("#app").innerHTML = /* HTML */ `
     <div class="shell">
       <aside class="sidebar">
@@ -412,7 +433,20 @@ function render() {
           <span class="eyebrow">YOUR PERSONAL TRAINING LOG</span>
           <div class="brand mobilebrand">${ic("lift")}repquest</div>
           <div class="topstats">
-            <span class="gold">${ic("bolt")} ${r.total} XP</span>
+          <span class="gold xptext">${ic("bolt")} ${r.total} XP</span>
+            <div
+              class="xpmeter gold"
+              role="progressbar"
+              aria-label="Progress to level ${level + 1}"
+              aria-valuemin="0"
+              aria-valuemax="${need}"
+              aria-valuenow="${levelXp}"
+            >
+              ${ic("bolt")}
+              <div class="xptrack">
+                <div class="xpfill" style="width: ${(levelXp / need) * 100}%"></div>
+              </div>
+            </div>
             <span class="green">${ic("trophy")} Level ${level}</span>
             <span class="muted">${ic("target")} ${data.sessions.length} workouts</span>
           </div>
@@ -445,8 +479,9 @@ function render() {
 }
 // Dashboard and recent workouts.
 function home(r) {
+  const lv = levelInfo(r.total);
   const start = weekStart(today()),
-    days = Array.from({ length: 7 }, (_, i) => {
+  days = [...Array(7).keys()].map((i) => {
       const d = new Date(start + "T12:00:00");
       d.setDate(d.getDate() + i);
       return day(d);
@@ -562,20 +597,20 @@ function home(r) {
         <section class="card level">
           <div class="eyebrow">YOUR STRENGTH JOURNEY</div>
           <div class="levelbadge">
-            <span>${Math.floor(r.total / 150) + 1}</span>
+            <span>${lv.level}</span>
           </div>
           <h3>
             ${["Getting started", "Building momentum", "Finding your rhythm", "Stronger every week"][Math.min(3, Math.floor(r.total / 450))]}
           </h3>
           <p class="muted small">
-            Level ${Math.floor(r.total / 150) + 1} · ${r.total} total XP
+            Level ${lv.level} · ${r.total} total XP
           </p>
           <div class="progressbar">
-            <span style="width: ${((r.total % 150) / 150) * 100}%"></span>
+            <span style="width: ${(lv.xp / lv.need) * 100}%"></span>
           </div>
           <div class="row small muted">
-            <span>${r.total % 150} / 150 XP</span>
-            <span>Level ${Math.floor(r.total / 150) + 2}</span>
+            <span>${lv.xp} / ${lv.need} XP </span>
+            <span>Level ${lv.level + 1}</span>
           </div>
         </section>
         <section class="card">
@@ -1145,8 +1180,9 @@ function settings() {
         </p>
         <p class="small muted">
           Bonuses compare with the previous logged session, prioritize weight over reps
-          over sets, and cap at 60 XP per day. Your first session establishes a baseline.
-          Every 150 XP is a new level.
+          over sets. Your first session establishes a baseline.
+          Level 1 takes 150 XP, and each level needs 25% more than the one before until level 25.
+          After that, every level costs the same.
         </p>
         <p class="small muted">
           Deleting a workout recalculates XP and comparisons. Rest days never subtract XP.
