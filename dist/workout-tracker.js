@@ -199,80 +199,89 @@ const sorted = () =>
   );
 // XP and progress: calculate earned rewards from completed workouts and sets.
 function rewards() {
-  const prev = new Map(),
-    dates = new Set(),
-    bonuses = new Set(),
+  const dates = new Set(),
+    seenExercises = new Set(),
+    bestScores = new Map(),
     result = { total: 0, prs: 0, byId: {} };
-  // Replay sessions chronologically so edits/deletions recalculate all rewards.
+
+  let previousWorkoutDate = null;
+  let streakWorkouts = 0;
+
+  // Replay sessions chronologically so deleting/editing workouts
+  // automatically recalculates XP, streaks, and PRs.
   for (const s of sorted()) {
-    let xp = dates.has(s.date) ? 0 : 25;
-    dates.add(s.date);
-    const reasons = xp ? ["Workout completed +25"] : [];
-    let daily = 0;
-    for (const e of s.exercises) {
-      const key = norm(e.name),
-        p = prev.get(key),
-        awardKey = s.date + key;
-      let bonus = 0,
-        reason = "";
-      // One progress bonus per exercise/day; priority is weight, reps, then sets.
-      if (p && !bonuses.has(awardKey)) {
-        const heavier = e.sets.some(
-          (r) =>
-            r.weight > Math.max(...p.sets.map((x) => x.weight)) &&
-            r.reps >=
-              Math.max(
-                ...p.sets
-                  .filter((x) => x.weight === Math.max(...p.sets.map((x) => x.weight)))
-                  .map((x) => x.reps),
-              ),
-        );
-        const moreReps = e.sets.some(
-          (r) =>
-            p.sets.some((x) => x.weight === r.weight) &&
-            r.reps >
-              Math.max(...p.sets.filter((x) => x.weight === r.weight).map((x) => x.reps)),
-        );
-        const repVolume = [...new Set(e.sets.map((x) => x.weight))].some((w) => {
-          const a = e.sets.filter((x) => x.weight === w),
-            b = p.sets.filter((x) => x.weight === w);
-          return (
-            a.length === b.length &&
-            b.length > 0 &&
-            a.reduce((n, x) => n + x.reps, 0) > b.reduce((n, x) => n + x.reps, 0)
-          );
-        });
-        if (heavier) {
-          bonus = 15;
-          reason = "Heavier lift";
-          result.prs++;
-        } else if (moreReps || repVolume) {
-          bonus = 10;
-          reason = "Rep best";
-          result.prs++;
-        } else if (
-          e.sets.length > p.sets.length &&
-          p.sets.every((x, i) => e.sets[i].weight >= x.weight && e.sets[i].reps >= x.reps)
-        ) {
-          bonus = 5;
-          reason = "Extra working set";
-        }
-        if (bonus) {
-          bonuses.add(awardKey);
-          // Completion XP is separate from the 60-point daily progress cap.
-          const used = result.byId["_daily" + s.date] || 0;
-          bonus = Math.min(bonus, Math.max(0, 60 - used));
-          result.byId["_daily" + s.date] = used + bonus;
-          xp += bonus;
-          if (bonus) reasons.push(`${e.name}: ${reason} +${bonus}`);
-        }
-      }
-      prev.set(key, e);
+    const daysSinceLastWorkout = previousWorkoutDate
+      ? (new Date(s.date + "T12:00:00") -
+          new Date(previousWorkoutDate + "T12:00:00")) /
+        86400000
+      : null;
+
+    // The streak survives through 3 inactive days.
+    // A 5-day gap means 4 full inactive days passed.
+    if (daysSinceLastWorkout === null || daysSinceLastWorkout >= 5) {
+      streakWorkouts = 1;
+    } else if (daysSinceLastWorkout > 0) {
+      // Same-day workouts do not increase the multiplier.
+      streakWorkouts += 1;
     }
+
+    const multiplier = Math.min(1 + (streakWorkouts - 1) * 0.2, 3);
+    const workoutXp = Math.round(100 * multiplier);
+
+    // Only the first completed workout of the day earns completion XP.
+    let xp = dates.has(s.date) ? 0 : workoutXp;
+    dates.add(s.date);
+
+    const reasons = xp
+      ? [`Workout completed +${workoutXp} (${multiplier.toFixed(1)}x)`]
+      : [];
+
+    for (const e of s.exercises) {
+      const key = norm(e.name);
+
+      // Find the strongest set in this workout for this exercise.
+      const currentBestScore = Math.max(
+        ...e.sets.map((set) => {
+          const effectiveReps = Math.min(set.reps, 12);
+          return set.weight * (1 + effectiveReps / 30);
+        }),
+      );
+
+      // First time ever performing this exercise.
+      if (!seenExercises.has(key)) {
+        xp += 10;
+        reasons.push(`${e.name}: First time +10`);
+
+        seenExercises.add(key);
+        bestScores.set(key, currentBestScore);
+
+        // First performance establishes the baseline.
+        // It does not count as a PR.
+        continue;
+      }
+
+      const previousBestScore = bestScores.get(key);
+
+      // A PR happens when this workout beats the best strength score
+      // previously recorded for this exercise.
+      if (currentBestScore > previousBestScore) {
+        xp += 25;
+        result.prs += 1;
+        reasons.push(`${e.name}: New strength PR +25`);
+
+        bestScores.set(key, currentBestScore);
+      }
+    }
+
     result.total += xp;
     result.byId[s.id] = { xp, reasons };
+
+    // This workout becomes the previous workout for the next iteration.
+    previousWorkoutDate = s.date;
   }
+
   return result;
+
 }
 // Find the latest earlier result for this exercise when comparing performance.
 function previous(name, date = today()) {
